@@ -1,0 +1,14 @@
+{
+  "name": "@zenk/vision",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": { "default": "./lib/index.js" },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "description": "DSH 本地视觉能力：macOS Vision OCR + ollama qwen3-vl 语义描述 + 上传图片桥接（图片块转文本，text-only 通道可用）"
+}
