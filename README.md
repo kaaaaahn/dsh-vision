@@ -13,12 +13,12 @@ DSH 本地视觉插件：对话框里直接粘贴截图，AI 就能看到并分�
 ## 安装
 
 ```sh
-dsh plugin --profile web add "github:kaaaaahn/dsh-vision"
+dsh plugin --profile web add "github:kaaaaahn/dsh-vision#v0.3.1"
 ```
 
 重启 DSH 生效。桌面端把 `--profile web` 换成 `--profile desktop`。
 
-也可以从插件市场安装：设置 → 插件市场 → 添加来源 → 粘贴 `https://kaaaaahn.github.io/dsh-vision/catalog/source.json` → 安装 `@zenk/vision`。
+> 插件市场条目（添加来源 `https://kaaaaahn.github.io/dsh-vision/catalog/source.json`）依赖 npm 发布，目前暂未上线，请使用上方 GitHub 命令安装。
 
 首次使用会自动下载模型（后台进行），期间 OCR 已可用；环境细节见 [docs/ollama-setup.md](docs/ollama-setup.md)。
 
