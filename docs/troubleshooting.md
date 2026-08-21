@@ -2,6 +2,30 @@
 
 按现象分类，从高频到低频。定位问题先看顺序：**ollama 服务 → 模型 → 图片路径 → DSH 集成**。
 
+## 〇、vision_setup 相关
+
+### Q0. vision_setup 是什么？为什么需要它？
+
+`vision_setup` 是本插件自带的**环境工具**：一条命令检测你的机器（ollama 程序/服务、已拉取模型、内存、磁盘、模型能力 patch 状态），按内存推荐合适的视觉模型；`auto=true` 时自动完成安装 ollama（brew）、启动服务、拉取推荐模型、补打模型 patch——开箱即用，不需要手动装任何东西。
+
+```text
+用法：vision_setup            # 检测并输出报告
+      vision_setup(auto=true) # 一键安装（耗时可长达数分钟）
+```
+
+### Q0.1 一键安装失败怎么办？
+
+按报错分段排查（安装顺序：ollama → 服务 → 模型 → patch）：
+- **「未检测到 brew」**：机器没有 Homebrew。先装 brew（`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`）或从官网下载 ollama dmg，再重跑
+- **「brew 安装 ollama 失败」**：网络问题，重试；或官网下载 dmg
+- **「ollama 服务启动失败」**：手动 `ollama serve` 看输出
+- **「模型拉取失败」**：网络慢/中断，重跑 `ollama pull` 续传；必要时挂代理
+- **「模型能力 patch 失败」**：DSH 版本结构变化（见 Q12 的检查命令）；不影响 OCR-only 使用，仅上传图片会被预检拒绝
+
+### Q0.2 为什么检测报告说「模型能力 patch 未生效」？
+
+上传图片预检依赖部署级 patch（`dsh-llm-deepseek` 声明 image 输入能力）。DSH **升级会覆盖**此文件，升级后运行 `vision_setup(auto=true)` 会自动补打；也可手动检查（见 Q12）。
+
 ## 一、ollama 相关
 
 ### Q1. vision_analyze 返回「ollama 不可达: Could not connect...」
