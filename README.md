@@ -33,14 +33,36 @@
    ```
 3. 重启 DSH
 
-## 发布
+## 发布与市场收录
+
+仓库：https://github.com/kaaaaahn/dsh-vision
+
+### 目录源（DSH Community Market）
+
+本仓库的 `catalog/` 目录已发布标准目录源（[manifest](catalog/source.json) + [provider page](catalog/plugins.json)），托管于 GitHub Pages：
+
+- **Manifest URL**：`https://kaaaaahn.github.io/dsh-vision/catalog/source.json`
+
+DSH 用户添加来源步骤（设置 → 插件市场 → 添加来源 → 粘贴 Manifest URL），即可浏览并安装本插件。
+
+### npm 发布（安装前提）
+
+市场安装从 npm 拉包（`package.registry` 固定为 `npm`），因此收录生效前需发布 npm：
 
 ```bash
-cd <profile>/node_modules/@zenk/vision
-npm publish --access public   # 需 npm 账号与 @zenk scope 权限
+cd node_modules/@zenk/vision
+npm adduser                      # 首次：登录 npm（交互式）
+npm publish --access public      # 需要 @zenk scope 归属（npm 组织或改名）
 ```
 
-安装方：
+若 `@zenk` scope 不可用，可把 `package.json` 的 `name` 改为 `@<你的npm用户名>/vision`，并同步更新 `catalog/plugins.json` 的 `package.name`。
+
+### 手动安装
+
 ```bash
 pnpm add @zenk/vision   # 在 profile 目录，然后手动加入 dsh.profile.bundles
 ```
+
+## License
+
+MIT
