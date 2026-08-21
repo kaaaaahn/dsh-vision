@@ -1,15 +1,15 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": "2026-08-21T10:00:00Z",
-  "revision": "2026-08-21T10:00:00Z",
+  "generatedAt": "2026-08-21T10:40:00Z",
+  "revision": "2026-08-21T10:40:00Z",
   "items": [
     {
       "id": "zenk-vision",
       "name": "@zenk/vision",
       "displayName": "ZenK Vision",
-      "summary": "本地视觉能力：粘贴图片即可被 AI 看见（macOS Vision OCR + qwen3-vl 语义描述 + 上传图片桥接）；vision_setup 一键检测环境、按内存推荐并自动安装模型",
+      "summary": "安装即开箱即用：插件后台自动检测并配置环境（ollama+模型+patch），粘贴图片即可被 AI 看见（macOS Vision OCR + qwen3-vl 语义描述 + 上传图片桥接）",
       "homepage": "https://github.com/kaaaaahn/dsh-vision",
-      "latestVersion": "0.2.0",
+      "latestVersion": "0.3.0",
       "license": "MIT",
       "categories": [
         "tool",
@@ -39,7 +39,7 @@
           "gui>=2.0"
         ]
       },
-      "updatedAt": "2026-08-21T10:00:00Z"
+      "updatedAt": "2026-08-21T10:40:00Z"
     }
   ],
   "page": {
