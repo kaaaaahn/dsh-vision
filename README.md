@@ -63,29 +63,13 @@ ollama list                     # 应看到 qwen3-vl:4b-instruct-q4_K_M
 
 验证：粘贴一张截图到对话框 → 发送 → 应看到消息被转换为含本地路径的文本说明，并收到图片内容分析。
 
-## 发布与市场收录
+## 市场收录
 
-仓库：https://github.com/kaaaaahn/dsh-vision
-
-### 目录源（DSH Community Market）
-
-`catalog/` 目录已发布标准目录源（[manifest](catalog/source.json) + [provider page](catalog/plugins.json)），托管于 GitHub Pages：
+本插件已发布标准目录源（[manifest](catalog/source.json) + [provider page](catalog/plugins.json)），托管于 GitHub Pages：
 
 - **Manifest URL**：`https://kaaaaahn.github.io/dsh-vision/catalog/source.json`
 
-DSH 用户添加来源步骤（设置 → 插件市场 → 添加来源 → 粘贴 Manifest URL），即可浏览并安装本插件。
-
-### npm 发布（安装前提）
-
-市场安装从 npm 拉包（`package.registry` 固定为 `npm`），收录生效前需发布 npm：
-
-```bash
-cd node_modules/@zenk/vision
-npm adduser                      # 首次：登录 npm（交互式）
-npm publish --access public      # 需要 @zenk scope 归属（npm 组织或改名）
-```
-
-若 `@zenk` scope 不可用，把 `package.json` 的 `name` 改为 `@<你的npm用户名>/vision`，并同步更新 `catalog/plugins.json` 的 `package.name`。
+添加来源步骤：**设置 → 插件市场 → 添加来源 → 粘贴 Manifest URL**，即可浏览并安装本插件。
 
 ### 手动安装
 
@@ -104,7 +88,8 @@ pnpm add @zenk/vision   # 在 profile 目录，然后手动加入 dsh.profile.bu
 │   └── plugins.json          # 标准 provider page（@zenk/vision）
 ├── docs/
 │   ├── ollama-setup.md       # Ollama 部署详解：安装/模型选型/内存磁盘规划/性能调优
-│   └── troubleshooting.md    # 常见问题 FAQ
+│   ├── troubleshooting.md    # 常见问题 FAQ
+│   └── PUBLISHING.md         # 维护者内部文档（发布流程，非用户文档）
 ├── package.json
 └── README.md
 ```
