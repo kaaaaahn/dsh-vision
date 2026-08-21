@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-08-21T08:30:00Z",
+  "revision": "2026-08-21T08:30:00Z",
+  "items": [
+    {
+      "id": "zenk-vision",
+      "name": "@zenk/vision",
+      "displayName": "ZenK Vision",
+      "summary": "本地视觉能力：macOS Vision OCR（文字+像素坐标）+ ollama qwen3-vl 语义描述 + 上传图片桥接（text-only 通道可用）",
+      "homepage": "https://github.com/kaaaaahn/dsh-vision",
+      "latestVersion": "0.1.0",
+      "license": "MIT",
+      "categories": ["tool", "vision"],
+      "keywords": ["vision", "ocr", "image", "screenshot", "local-ai"],
+      "repository": { "url": "https://github.com/kaaaaahn/dsh-vision" },
+      "package": { "registry": "npm", "name": "@zenk/vision" },
+      "publisher": { "name": "ZenK", "url": "https://github.com/kaaaaahn" },
+      "compatibility": { "apiVersion": "1.x", "hosts": ["gui>=2.0"] },
+      "updatedAt": "2026-08-21T08:30:00Z"
+    }
+  ],
+  "page": { "total": 1 }
+}

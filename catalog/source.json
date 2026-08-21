@@ -1,0 +1,20 @@
+{
+  "manifestVersion": "1.0.0",
+  "providerId": "com.zenk.dsh-vision",
+  "name": "ZenK Vision Catalog",
+  "attribution": {
+    "name": "ZenK",
+    "url": "https://github.com/kaaaaahn/dsh-vision"
+  },
+  "transport": {
+    "kind": "https-json",
+    "endpoint": "https://kaaaaahn.github.io/dsh-vision/catalog/plugins.json",
+    "method": "GET"
+  },
+  "query": {
+    "supported": ["q", "category", "cursor", "limit"],
+    "defaultLimit": 50,
+    "maxLimit": 50,
+    "sorts": []
+  }
+}
