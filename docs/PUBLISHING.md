@@ -42,18 +42,30 @@ curl -s https://kaaaaahn.github.io/dsh-vision/catalog/plugins.json | head
 
 > 注意顺序：目录源先更新（Page 构建约 1 分钟），npm 后发布——两者都就绪后市场条目才可安装。
 
-## 3. 模型能力声明 patch（随 DSH 升级需重做）
+## 3. 模型图片能力声明（settings.yaml）
 
-上传图片链路依赖部署级 patch，DSH 升级会覆盖：
+上传图片链路依赖 `$DSH_HOME/settings.yaml` 的 `llm-deepseek.models` 段声明图片输入能力（`inputModalities` 含 `image`）。DSH 2.0.2 起改为从 settings.yaml 读取，**热加载、升级不覆盖**：
 
-```bash
-# 文件：<DSH>/Contents/Resources/app.asar.unpacked/node_modules/@deepseek-ai/dsh-llm-deepseek/lib/index.js
-# 修改：两处 inputModalities: ["text"] → ["text", "image"]
-sed -i.bak 's/inputModalities: \["text"\]/inputModalities: ["text", "image"]/g' \
-  "/Applications/DSH Desktop.app/Contents/Resources/app.asar.unpacked/node_modules/@deepseek-ai/dsh-llm-deepseek/lib/index.js"
+```yaml
+llm-deepseek:
+  models:
+    - id: deepseek-v4-flash
+      name: DeepSeek-V4-Flash
+      inputModalities:
+        - text
+        - image
+    - id: deepseek-v4-pro
+      name: DeepSeek-V4-Pro
+    - id: deepseek-v4-flash-vision-exp
+      name: DeepSeek-V4-Flash-Vision-Exp
+      inputModalities:
+        - text
+        - image
 ```
 
-备份在 `.bak` 后缀文件；回滚用备份覆盖即可。
+插件运行 `vision_setup(auto=true)` 或首次自动准备时会检测并写入该段（缺失追加、已存在整体替换、保留文件其余设置段）。
+
+> 旧实现直接改应用包内适配器文件（`app.asar.unpacked/.../dsh-llm-deepseek/lib/index.js`），升级即失效；2.0.2 起适配器结构变化，该方式已不可行。
 
 ## 4. 本地开发
 

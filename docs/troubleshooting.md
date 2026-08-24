@@ -6,7 +6,7 @@
 
 ### Q0. vision_setup 是什么？为什么需要它？
 
-`vision_setup` 是本插件自带的**环境工具**：一条命令检测你的机器（ollama 程序/服务、已拉取模型、内存、磁盘、模型能力 patch 状态），按内存推荐合适的视觉模型；`auto=true` 时自动完成安装 ollama（brew）、启动服务、拉取推荐模型、补打模型 patch——开箱即用，不需要手动装任何东西。
+`vision_setup` 是本插件自带的**环境工具**：一条命令检测你的机器（ollama 程序/服务、已拉取模型、内存、磁盘、模型图片能力声明状态），按内存推荐合适的视觉模型；`auto=true` 时自动完成安装 ollama（brew）、启动服务、拉取推荐模型、写入模型图片能力声明——开箱即用，不需要手动装任何东西。
 
 ```text
 用法：vision_setup            # 检测并输出报告
@@ -15,16 +15,16 @@
 
 ### Q0.1 一键安装失败怎么办？
 
-按报错分段排查（安装顺序：ollama → 服务 → 模型 → patch）：
+按报错分段排查（安装顺序：ollama → 服务 → 模型 → 能力声明）：
 - **「未检测到 brew」**：机器没有 Homebrew。先装 brew（`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`）或从官网下载 ollama dmg，再重跑
 - **「brew 安装 ollama 失败」**：网络问题，重试；或官网下载 dmg
 - **「ollama 服务启动失败」**：手动 `ollama serve` 看输出
 - **「模型拉取失败」**：网络慢/中断，重跑 `ollama pull` 续传；必要时挂代理
-- **「模型能力 patch 失败」**：DSH 版本结构变化（见 Q12 的检查命令）；不影响 OCR-only 使用，仅上传图片会被预检拒绝
+- **「模型图片能力声明写入失败」**：settings.yaml 不可写或格式异常（见 Q12 的检查命令）；不影响 OCR-only 使用，仅上传图片会被预检拒绝
 
-### Q0.2 为什么检测报告说「模型能力 patch 未生效」？
+### Q0.2 为什么检测报告说「模型图片能力声明未生效」？
 
-上传图片预检依赖部署级 patch（`dsh-llm-deepseek` 声明 image 输入能力）。DSH **升级会覆盖**此文件，升级后运行 `vision_setup(auto=true)` 会自动补打；也可手动检查（见 Q12）。
+上传图片预检依赖 `$DSH_HOME/settings.yaml` 中 `llm-deepseek.models` 段声明图片输入能力（`inputModalities` 含 `image`）。DSH 2.0.2 起模型能力改为从 settings.yaml 读取，**热加载、升级不覆盖**；缺失时运行 `vision_setup(auto=true)` 会自动写入；也可手动检查（见 Q12）。
 
 ## 一、ollama 相关
 
@@ -112,18 +112,18 @@ ollama rm qwen3-vl:2b          # 删除不用的
 
 ### Q12. 上传图片仍提示「当前模型不支持图片识别」
 
-**原因**：模型能力声明 patch 未生效（最常见）或被 DSH 升级覆盖。
+**原因**：`$DSH_HOME/settings.yaml` 的 `llm-deepseek.models` 段未声明图片能力（最常见）或 DSH 升级后模型 id 变化。
 
 **检查**：
 ```bash
-grep -n "inputModalities" "/Applications/DSH Desktop.app/Contents/Resources/app.asar.unpacked/node_modules/@deepseek-ai/dsh-llm-deepseek/lib/index.js"
-# 期望输出：["text", "image"]（两处）
+grep -A3 "deepseek-v4-flash" "$DSH_HOME/settings.yaml"
+# 期望：deepseek-v4-flash 的 inputModalities 含 image
 ```
-若仍是 `["text"]`：按 README「部署」第 2 步重新 patch，然后**完全退出并重启 DSH**（Cmd+Q）。当前进程不会热加载此改动。
+若声明缺失：运行 `vision_setup(auto=true)` 自动写入，或手动在 settings.yaml 的 `llm-deepseek.models` 下为模型补充 `inputModalities: [text, image]`。设置段**热加载**，无需重启（旧版改应用包内适配器文件的方式已废弃，DSH 2.0.2 起结构变化且升级会覆盖）。
 
 ### Q13. 粘贴图片后完全没反应 / 消息发不出去
 
-- 先确认 Q12 的 patch 已生效（上传预检放行是第一步）
+- 先确认 Q12 的声明已生效（上传预检放行是第一步）
 - 再看消息是否转换成功（Q11）
 - 若本轮报错（如工具 schema 问题），查看会话错误信息后重启 DSH
 
@@ -147,11 +147,11 @@ grep -n "inputModalities" "/Applications/DSH Desktop.app/Contents/Resources/app.
 
 ### Q17. 升级 DSH 后功能失效
 
-DSH 升级会覆盖两处：
-1. `dsh-llm-deepseek` 的 inputModalities（见 Q12）→ 重新 patch
+DSH 升级可能影响：
+1. 模型 id 变化导致 settings.yaml 的声明失配（见 Q12）→ 运行 `vision_setup(auto=true)` 重新声明
 2. `node_modules/@zenk/vision/`（如果装在 app 目录下）→ 重新安装到 profile 目录
 
-profile 目录（`~/.dsh/profiles/<name>/node_modules`）不受升级影响。
+profile 目录（`~/.dsh/profiles/<name>/node_modules`）不受升级影响；settings.yaml 中的能力声明同样不受升级影响（除非模型 id 变化）。
 
 ### Q18. 如何卸载
 
@@ -159,7 +159,7 @@ profile 目录（`~/.dsh/profiles/<name>/node_modules`）不受升级影响。
 # 1) 从 profile package.json 的 dsh.profile.bundles 移除 "@zenk/vision"
 # 2) 删除目录
 rm -rf ~/.dsh/profiles/<name>/node_modules/@zenk/vision
-# 3) 可选：恢复模型能力 patch（["text","image"] → ["text"]）并删除模型
+# 3) 可选：移除 settings.yaml 中 llm-deepseek 段的图片能力声明并删除模型
 ollama rm qwen3-vl:4b-instruct-q4_K_M
 ```
 
