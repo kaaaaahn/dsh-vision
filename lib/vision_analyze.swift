@@ -78,34 +78,59 @@ if describeFlag.hasPrefix("describe") {
         print(String(data: out, encoding: .utf8)!)
         exit(0)
     }
-    // 缩放：最长边限制 1280，减少视觉 token（qwen3-vl 默认上下文 4096 放不下大图）
+
+    // ── 前置压缩：Qwen3-VL 推荐单图视觉 token 256~1280（32× 空间压缩，≈ 0.26M~1.31M 像素）──
+    // 双约束：最长边 ≤ 1280 且总像素 ≤ 1M；Lanczos 高质量插值；大图用 JPEG 85 减小 payload
+    let MAX_SIDE: CGFloat = 1280
+    let MAX_PIXELS: CGFloat = 1_048_576 // 1M 像素，对应官方 max_pixels 推荐档
     var target = rep
-    let maxSide = 1280
-    let longest = max(rep.pixelsWide, rep.pixelsHigh)
-    if longest > maxSide {
-        let scale = Double(maxSide) / Double(longest)
-        let w = max(1, Int(Double(rep.pixelsWide) * scale))
-        let h = max(1, Int(Double(rep.pixelsHigh) * scale))
-        if let scaled = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
-            if let ctx = NSGraphicsContext(bitmapImageRep: scaled) {
-                NSGraphicsContext.saveGraphicsState()
-                NSGraphicsContext.current = ctx
-                rep.draw(in: NSRect(x: 0, y: 0, width: w, height: h))
-                ctx.flushGraphics()
-                NSGraphicsContext.restoreGraphicsState()
-                target = scaled
+    var scaleUsed: CGFloat = 1.0
+    let srcW = CGFloat(rep.pixelsWide)
+    let srcH = CGFloat(rep.pixelsHigh)
+    let longest = max(srcW, srcH)
+    let pixels = srcW * srcH
+    let scaleBySide = MAX_SIDE / longest
+    let scaleByPixels = sqrt(MAX_PIXELS / pixels)
+    let scale = min(scaleBySide, scaleByPixels, 1.0)
+    if scale < 1.0 {
+        let w = max(1, Int((srcW * scale).rounded()))
+        let h = max(1, Int((srcH * scale).rounded()))
+        if let srcCG = rep.cgImage,
+           let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                               space: CGColorSpaceCreateDeviceRGB(),
+                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+            ctx.interpolationQuality = .high // Lanczos 级缩放，文字边缘更清晰
+            ctx.draw(srcCG, in: CGRect(x: 0, y: 0, width: w, height: h))
+            if let scaled = ctx.makeImage() {
+                let scaledRep = NSBitmapImageRep(cgImage: scaled)
+                scaledRep.size = NSSize(width: w, height: h)
+                target = scaledRep
+                scaleUsed = CGFloat(w) / srcW
             }
         }
     }
-    guard let png = target.representation(using: .png, properties: [:]) else {
-        result["vision"] = ["error": "PNG 编码失败"]
+
+    // 编码选择：带透明通道用 PNG（保留 alpha），否则 JPEG 85（截图 payload 可小 5~10 倍）
+    let enc: NSBitmapImageRep.FileType = rep.hasAlpha ? .png : .jpeg
+    let props: [NSBitmapImageRep.PropertyKey: Any] = enc == .jpeg ? [.compressionFactor: 0.85] : [:]
+    guard let encoded = target.representation(using: enc, properties: props) else {
+        result["vision"] = ["error": "图片编码失败"]
         let out = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
         print(String(data: out, encoding: .utf8)!)
         exit(0)
     }
-    let b64 = png.base64EncodedString()
+    let b64 = encoded.base64EncodedString()
 
-    let prompt = "这是一张软件界面截图（可能是游戏开发工具）。请用简洁的中文描述：1) 界面整体布局；2) 可见的主要元素与文字；3) 任何看起来异常、错位、被裁剪或样式有问题的地方。如果无法确定就说明无法确定。控制在150字以内。"
+    // 元信息：让模型知道当前看到的是压缩视图，原图尺寸是多少
+    result["vision_meta"] = [
+        "original": ["width": Int(srcW), "height": Int(srcH)],
+        "scaled": ["width": target.pixelsWide, "height": target.pixelsHigh],
+        "scale": round(scaleUsed * 1000) / 1000,
+        "encoding": enc == .jpeg ? "jpeg-85" : "png",
+        "payloadKB": encoded.count / 1024,
+    ]
+
+    let prompt = "这是一张软件界面截图（可能是游戏开发工具）。输入图像已被压缩（原图 \(Int(srcW))×\(Int(srcH))，当前 \(target.pixelsWide)×\(target.pixelsHigh)），小号文字可能无法辨认。请用简洁的中文描述：1) 界面整体布局；2) 可见的主要元素与文字；3) 任何看起来异常、错位、被裁剪或样式有问题的地方。如果无法确定就说明无法确定。控制在150字以内。"
 
     let payload: [String: Any] = [
         "model": modelName,
