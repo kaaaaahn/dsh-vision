@@ -6,7 +6,7 @@
 
 ### Q0. vision_setup 是什么？为什么需要它？
 
-`vision_setup` 是本插件自带的**环境工具**：一条命令检测你的机器（ollama 程序/服务、已拉取模型、内存、磁盘、模型图片能力声明状态），按内存推荐合适的视觉模型；`auto=true` 时自动完成安装 ollama（brew）、启动服务、拉取推荐模型、写入模型图片能力声明——开箱即用，不需要手动装任何东西。
+`vision_setup` 是本插件自带的**环境工具**：一条命令检测你的机器（ollama 程序/服务、已拉取模型、内存、磁盘、当前模型的图片能力、Swift 分析工具预编译状态），按内存推荐合适的视觉模型；`auto=true` 时自动完成安装 ollama（brew）、启动服务、拉取推荐模型、预编译 Swift 分析工具——开箱即用，不需要手动装任何东西。
 
 ```text
 用法：vision_setup            # 检测并输出报告
@@ -15,16 +15,21 @@
 
 ### Q0.1 一键安装失败怎么办？
 
-按报错分段排查（安装顺序：ollama → 服务 → 模型 → 能力声明）：
+按报错分段排查（安装顺序：ollama → 服务 → 模型 → Swift 工具）：
 - **「未检测到 brew」**：机器没有 Homebrew。先装 brew（`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`）或从官网下载 ollama dmg，再重跑
 - **「brew 安装 ollama 失败」**：网络问题，重试；或官网下载 dmg
 - **「ollama 服务启动失败」**：手动 `ollama serve` 看输出
 - **「模型拉取失败」**：网络慢/中断，重跑 `ollama pull` 续传；必要时挂代理
-- **「模型图片能力声明写入失败」**：settings.yaml 不可写或格式异常（见 Q12 的检查命令）；不影响 OCR-only 使用，仅上传图片会被预检拒绝
+- **「swiftc 编译失败」**：缺 Xcode Command Line Tools（`xcode-select --install`）或缓存目录不可写；不影响 OCR-only 使用，重跑 `vision_setup(auto=true)` 会重试
 
-### Q0.2 为什么检测报告说「模型图片能力声明未生效」？
+### Q0.2 检测报告里的「模型图片能力」是什么意思？
 
-上传图片预检依赖 `$DSH_HOME/settings.yaml` 中 `llm-deepseek.models` 段声明图片输入能力（`inputModalities` 含 `image`）。DSH 2.0.2 起模型能力改为从 settings.yaml 读取，**热加载、升级不覆盖**；缺失时运行 `vision_setup(auto=true)` 会自动写入；也可手动检查（见 Q12）。
+上传图片的处理方式取决于**当前默认模型是否声明 `image` 输入能力**（v0.4.0 起向 harness 查询，不再改写任何配置）：
+
+- **支持 image** → 粘图走原生通道，模型直接看见；`read_image` 放行；`vision_analyze` 退居像素级工具
+- **不支持** → 粘图转成带本地路径的文本，模型据此调用 `vision_analyze`
+
+报告会列出当前 provider 下官方已声明 image 的模型，可在「设置 → 模型」自行切换——**本插件不会改写你的模型配置**（详见 [native-upload.md](native-upload.md)）。
 
 ## 一、ollama 相关
 
@@ -110,20 +115,23 @@ ollama rm qwen3-vl:2b          # 删除不用的
 
 **这是设计行为，不是 bug**：桥接把图片块转换为含本地路径的文本，DeepSeek 通道才能继续。模型会基于该路径自动调用 vision_analyze。若模型没有自动分析，直接对它说「分析这张图」即可。
 
-### Q12. 上传图片仍提示「当前模型不支持图片识别」
+### Q12. 上传图片提示「当前模型不支持图片识别」
 
-**原因**：`$DSH_HOME/settings.yaml` 的 `llm-deepseek.models` 段未声明图片能力（最常见）或 DSH 升级后模型 id 变化。
+**原因**：当前默认模型未声明 `image` 输入能力，且模型能力 patch 未生效（v0.4.0 起不再改写配置，改为查询）。
 
 **检查**：
 ```bash
-grep -A3 "deepseek-v4-flash" "$DSH_HOME/settings.yaml"
-# 期望：deepseek-v4-flash 的 inputModalities 含 image
+# 看 harness 解析出的能力（插件走的就是这个入口）
+vision_setup      # 报告里「模型图片能力」一行会给出结论与可选模型
 ```
-若声明缺失：运行 `vision_setup(auto=true)` 自动写入，或手动在 settings.yaml 的 `llm-deepseek.models` 下为模型补充 `inputModalities: [text, image]`。设置段**热加载**，无需重启（旧版改应用包内适配器文件的方式已废弃，DSH 2.0.2 起结构变化且升级会覆盖）。
+
+**解决**：在「设置 → 模型」把默认模型切到官方已声明 image 的模型（`vision_setup` 报告会列出，例如 `deepseek-flash`、`deepseek-v4-flash-vision-exp`）。切换后 `vision_setup` 应显示「支持 image —— 粘图走原生通道」。
+
+> 注意：不要手写 `settings.yaml` 的 `llm-deepseek.models` 段——该字段是**整体替换**语义，手写表会把官方默认目录里其他模型挤出去，被挤出的模型按纯文本处理，反而丢掉官方默认就带的图片能力（v0.3.x 的缺陷，v0.4.0 已移除该行为，详见 [native-upload.md](native-upload.md)）。
 
 ### Q13. 粘贴图片后完全没反应 / 消息发不出去
 
-- 先确认 Q12 的声明已生效（上传预检放行是第一步）
+- 先确认 Q12 的能力判定正常（上传预检放行 / 桥接转换是第一步）
 - 再看消息是否转换成功（Q11）
 - 若本轮报错（如工具 schema 问题），查看会话错误信息后重启 DSH
 
@@ -143,15 +151,15 @@ grep -A3 "deepseek-v4-flash" "$DSH_HOME/settings.yaml"
 
 ### Q16. 报错「read_image 会产生模型通道不支持的图片内容...」
 
-这是 guard 的**预期提示**：模型尝试调用内置 `read_image` 被拦截。当前 DeepSeek 通道无法携带图片内容块，应使用 `vision_analyze` 替代。若模型反复调用 read_image，在对话中明确指示使用 vision_analyze。
+这是 guard 的**预期提示**：纯文本通道无法携带图片内容块，所以拦截 `read_image` 并提示改用 `vision_analyze`。若当前模型已声明 image 能力，`read_image` 会自动放行（v0.4.0 起 guard 按能力判定）。若模型反复调用 read_image，在对话中明确指示使用 vision_analyze。
 
 ### Q17. 升级 DSH 后功能失效
 
 DSH 升级可能影响：
-1. 模型 id 变化导致 settings.yaml 的声明失配（见 Q12）→ 运行 `vision_setup(auto=true)` 重新声明
+1. 默认模型或其能力声明变化（见 Q12）→ 运行 `vision_setup` 查看当前能力判定
 2. `node_modules/@zenk/vision/`（如果装在 app 目录下）→ 重新安装到 profile 目录
 
-profile 目录（`~/.dsh/profiles/<name>/node_modules`）不受升级影响；settings.yaml 中的能力声明同样不受升级影响（除非模型 id 变化）。
+profile 目录（`~/.dsh/profiles/<name>/node_modules`）不受升级影响；Swift 预编译产物按「源文件大小+mtime」指纹缓存在 `$DSH_HOME/cache/zenk-vision/`，升级后若脚本变化会自动重编译。
 
 ### Q18. 如何卸载
 
@@ -159,7 +167,8 @@ profile 目录（`~/.dsh/profiles/<name>/node_modules`）不受升级影响；se
 # 1) 从 profile package.json 的 dsh.profile.bundles 移除 "@zenk/vision"
 # 2) 删除目录
 rm -rf ~/.dsh/profiles/<name>/node_modules/@zenk/vision
-# 3) 可选：移除 settings.yaml 中 llm-deepseek 段的图片能力声明并删除模型
+# 3) 可选：清理 Swift 预编译缓存与视觉模型
+rm -rf ~/.dsh/cache/zenk-vision
 ollama rm qwen3-vl:4b-instruct-q4_K_M
 ```
 

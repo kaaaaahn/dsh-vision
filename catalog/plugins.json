@@ -7,9 +7,9 @@
       "id": "zenk-vision",
       "name": "@zenk/vision",
       "displayName": "ZenK Vision",
-      "summary": "安装即开箱即用：插件后台自动检测并配置环境（ollama+模型+图片能力声明），粘贴图片即可被 AI 看见（macOS Vision OCR + qwen3-vl 语义描述 + 上传图片桥接）",
+      "summary": "安装即开箱即用：插件后台自动检测并配置环境（ollama+模型+Swift 工具），按当前模型能力自动切换上传通道——支持 image 的模型直接看见图，纯文本通道走本地视觉（macOS Vision OCR + qwen3-vl 语义描述 + 区域定位）",
       "homepage": "https://github.com/kaaaaahn/dsh-vision",
-      "latestVersion": "0.3.1",
+      "latestVersion": "0.4.0",
       "license": "MIT",
       "categories": [
         "tool",

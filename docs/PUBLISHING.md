@@ -42,30 +42,23 @@ curl -s https://kaaaaahn.github.io/dsh-vision/catalog/plugins.json | head
 
 > 注意顺序：目录源先更新（Page 构建约 1 分钟），npm 后发布——两者都就绪后市场条目才可安装。
 
-## 3. 模型图片能力声明（settings.yaml）
+## 3. 模型图片能力：只查询，不改写（v0.4.0）
 
-上传图片链路依赖 `$DSH_HOME/settings.yaml` 的 `llm-deepseek.models` 段声明图片输入能力（`inputModalities` 含 `image`）。DSH 2.0.2 起改为从 settings.yaml 读取，**热加载、升级不覆盖**：
+v0.4.0 起**不再改写任何配置**。能力判定走 harness 的正规入口：
 
-```yaml
-llm-deepseek:
-  models:
-    - id: deepseek-v4-flash
-      name: DeepSeek-V4-Flash
-      inputModalities:
-        - text
-        - image
-    - id: deepseek-v4-pro
-      name: DeepSeek-V4-Pro
-    - id: deepseek-v4-flash-vision-exp
-      name: DeepSeek-V4-Flash-Vision-Exp
-      inputModalities:
-        - text
-        - image
+```js
+const sel = ctx.agentDefaultModel.currentSelection()          // { provider, model }
+const info = await ctx.llm.resolveModelInfo(sel.provider, sel.model)
+info.inputModalities.includes('image')
 ```
 
-插件运行 `vision_setup(auto=true)` 或首次自动准备时会检测并写入该段（缺失追加、已存在整体替换、保留文件其余设置段）。
+查不到时按「不支持」处理（保守：桥接在任何情况下都安全，误判为支持才会让图片进纯文本通道）。不支持时只在 `vision_setup` 报告里**建议**用户切换模型，由用户在「设置 → 模型」自行操作。
 
-> 旧实现直接改应用包内适配器文件（`app.asar.unpacked/.../dsh-llm-deepseek/lib/index.js`），升级即失效；2.0.2 起适配器结构变化，该方式已不可行。
+> **为什么废弃了 v0.3.x 的 settings.yaml 写入**：`llm-deepseek.models` 是**整体替换**语义（`.default(DEFAULT_MODELS)` 只在字段缺失时生效），手写模型表会把官方默认目录里其他模型挤出去——被挤出的模型走 `modelInfoFor` 兜底分支按纯文本处理，**反而剥夺了官方默认就带的图片能力**（如 `deepseek-flash`）；同时把官方刻意定义为纯文本的 `deepseek-v4-flash` 标成支持 image，真发图可能被服务端拒绝。查证细节与实测矩阵见 [native-upload.md](native-upload.md)。
+
+### Swift 分析工具预编译
+
+`vision_analyze` 不再每次 `swift <script>` 现编译（需要写 Clang 模块缓存，缓存冷时可能被沙箱拒绝，报 `unable to open output file ... .pcm: Operation not permitted`）。改为 `swiftc -O` 一次，产物按「源文件大小+mtime」指纹缓存在 `$DSH_HOME/cache/zenk-vision/`，编译期用 `CLANG_MODULE_CACHE_PATH` / `SWIFT_MODULE_CACHE_PATH` 指向该可写目录，运行时只跑二进制（实测 0.96s → 0.30s）。
 
 ## 4. 本地开发
 
