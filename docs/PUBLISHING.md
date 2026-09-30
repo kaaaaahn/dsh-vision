@@ -82,3 +82,16 @@ node "<DSH>/node_modules/@deepseek-ai/dsh/lib/bin.js" --profile <profile> --dump
 | swift | 随 Xcode CLT 提供 | `swift --version` |
 | ollama | 0.5+ | `ollama --version` |
 | 视觉模型 | qwen3-vl:4b-instruct-q4_K_M | `ollama list` |
+
+## 6. DSH 0.2 发布规范核对（清单）
+
+发布前对照官方开发者文档核对（`docs/user/develop/`）：
+
+- **包 manifest**：`dsh.bundle.patch` 指向 patch 文件；`main`/`exports` 指向入口；`files` 明确发布内容（本仓库：`lib/index.js`、`lib/vision_analyze.swift`、`cordis.patch.yml`）
+- **patch 行**：`- insert: - id: <id>  name: <包名>`（按包名引用，Node 模块解析才能找到已安装代码）
+- **服务依赖**：用到的服务写进 `export const inject`；`ctx.shell` 在 0.2 起**必须**声明，否则 `ctx.get('shell')` 返回 undefined
+- **shell 调用**：`execute(spec)` → `await handle.result()`；结果字段 `exitCode`（null=信号）、`signal`、`timedOut`、`aborted`、`stdout.text`、`stderr.text`
+- **工具定义**：`execute` 只返回规范值，渲染交给 `output.render`；显式对象声明 `additionalProperties`；按需声明 `timeoutMs`、`isConcurrencySafe`、`presentCall`
+- **presentCall/presentResult**：必须是 args 的纯函数（回放期也会调用）
+- **不要**依赖 `@deepseek-ai/dsh-tools` 的 `defineTool`，除非愿意把该包写进 peerDependencies（profile 与运行时都解析不到它）
+- **desktop profile**：由 Electron 应用独占管理，验证插件用临时 profile

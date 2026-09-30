@@ -117,3 +117,72 @@ v0.4.0 改为 `swiftc -O` 一次，产物按「源文件大小+mtime」指纹缓
 `$DSH_HOME/cache/zenk-vision/`，编译期把 `CLANG_MODULE_CACHE_PATH` /
 `SWIFT_MODULE_CACHE_PATH` 显式指到 `$DSH_HOME` 下的可写目录。运行时只跑二进制，
 不再依赖 clang。实测单次调用 0.96s → 0.30s（约 3.2×）。
+
+## 八、DSH 0.2（正式版）兼容适配（v0.5.0）
+
+DSH 0.2 起 shell 执行 seam 与工具规范都有变化。以下结论来自在 0.2.0-rc.2 上用探针插件实测，不是推测。
+
+### 8.1 `shell.run()` 已从 seam 移除
+
+旧调用（v0.4.0 及以前，在 0.2 上**完全失效**）：
+
+```js
+const res = await shell.run(shell.resolve({ command, timeoutMs }))
+res.exitCode, res.stdout.text, res.stderr.text
+```
+
+新 seam（`@deepseek-ai/dsh-shell`）只有一个执行方法，且必须两步取结果：
+
+```js
+const execution = await ctx.shell.execute(ctx.shell.resolve({ command, timeoutMs }))
+const result = await execution.result()
+result.exitCode      // 数字；null = 被信号终止
+result.signal        // 终止信号名
+result.timedOut      // 超时是否为首个中断原因
+result.aborted       // 调用方中止是否为首个原因
+result.stdout.text   // 截断时是流的尾部；truncated / spillPath 另有指示
+```
+
+`result()` 不因非零退出、超时或中止而 reject——它们都是结果；只有基础设施故障（工作目录不可用、缺 shell、准备失败）才 reject `execute`。插件内的 `runShell()` 同时兼容两代 seam，并在旧版走 `run()` 分支。
+
+### 8.2 `ctx.shell` 必须由 `inject` 声明
+
+实测（inject 只写 `['tools']`）：
+
+```text
+shell=undefined | llm=OK | agentDefaultModel=OK | attachments=OK | tools=OK | jobs=OK
+```
+
+`shell` 是唯一**不 inject 就拿不到**的服务（新版按需提供，且 `ctx.shell` 属性访问只对已 inject 的服务可用）。因此 `inject` 必须写 `['tools', 'shell']`；llm / agentDefaultModel / attachments 仍可 `ctx.get()` 取用并保持可选。
+
+### 8.3 `defineTool` 在本插件不可用
+
+官方推荐用 `@deepseek-ai/dsh-tools` 的 `defineTool()`（自动参数校验 + 类型推导）。但该包**在 profile 与运行时的模块解析中都拿不到**：
+
+```text
+Cannot find package '@deepseek-ai/dsh-tools' imported from .../plugins/vision/index.js
+```
+
+要用它就得把 `@deepseek-ai/dsh-tools` 同时写进 `peerDependencies` 与 `devDependencies`，让 pnpm 在 profile 内装一份副本——代价是插件与宿主工具包版本强耦合，宿主升级即可能错配。官方规范明确「直接注册的原始 JSON Schema 工具自行负责输入校验，但仍需声明输出」，因此本插件保持**原始 JSON Schema 注册**，并把规范允许的元数据补齐（见 8.4）。
+
+### 8.4 工具元数据（规范允许的字段实测均被接受）
+
+| 字段 | 用途 | 本插件取值 |
+| --- | --- | --- |
+| `parameters.additionalProperties: false` | 显式对象节点必须声明 | 两个工具都已声明 |
+| `timeoutMs` | 策略元数据（非模型可见 schema） | `vision_analyze` 200s；`vision_setup` 1800s |
+| `isConcurrencySafe(args)` | 只有返回确切 `true` 才允许并发分发 | `vision_analyze` 为只读分析，参数合法即并发安全；`vision_setup` 可能安装软件，保持独占 |
+| `presentCall(args)` | UI 卡片（纯函数，回放期也会调用） | `vision_analyze` 返回 `{ card: 'generic', kind: 'read', locations: [{ path }] }`，让有能力的编辑器跟随图片文件 |
+| `output.schema` + `render` | `execute` 只返回规范值，渲染交给 `render` | 字符串根 + `[{ type: 'text', text }]` |
+
+> `presentCall` / `presentResult` 必须是 `args`（加结果）的纯函数——不做 I/O、不读会话状态、不用时钟或随机数，因为 UI 在实时流式输出和日志回放时都会调用它们。
+
+### 8.5 profile 归属
+
+0.2 起 `--profile desktop` 由 Electron 应用独占管理，CLI 直接操作会报：
+
+```text
+error: profile "desktop" is managed exclusively by the Electron application
+```
+
+验证插件请另建临时 profile（`dsh plugin --profile <tmp> add <path>`），不要直接改 desktop profile 的配置。

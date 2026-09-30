@@ -1,8 +1,13 @@
 {
   "name": "@zenk/vision",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "main": "lib/index.js",
+  "files": [
+    "lib/index.js",
+    "lib/vision_analyze.swift",
+    "cordis.patch.yml"
+  ],
   "exports": {
     ".": {
       "default": "./lib/index.js"

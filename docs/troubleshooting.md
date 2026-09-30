@@ -31,6 +31,29 @@
 
 报告会列出当前 provider 下官方已声明 image 的模型，可在「设置 → 模型」自行切换——**本插件不会改写你的模型配置**（详见 [native-upload.md](native-upload.md)）。
 
+## 〇之二、DSH 版本相关
+
+### Q0.3 升级到 DSH 0.2（正式版）后工具全部失效？
+
+v0.5.0 已适配。0.2 起 shell 执行 seam 变化：`shell.run()` 被移除，改为 `execute()` + `result()`；且 `ctx.shell` 必须由 `inject` 声明才可见。旧版插件在 0.2 上会看到：
+
+```text
+[zenk-vision] autoProvision error: shell 服务不可用
+```
+
+升级插件到 v0.5.0 即可恢复（[native-upload.md](native-upload.md#八dsh-02正式版兼容适配v050) 记录了查证与实测过程）。
+
+### Q0.4 用 CLI 操作 desktop profile 报「managed exclusively by the Electron application」？
+
+0.2 起 desktop profile 由 Electron 应用独占管理，CLI 不再能直接操作它。需要验证插件时另建临时 profile：
+
+```bash
+dsh plugin --profile tmpverify add /path/to/plugin
+dsh --profile tmpverify --dump-config | grep -A2 '== @zenk/vision'
+```
+
+桌面端插件通过「设置 → 插件」或应用内的市场管理。
+
 ## 一、ollama 相关
 
 ### Q1. vision_analyze 返回「ollama 不可达: Could not connect...」

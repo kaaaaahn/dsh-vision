@@ -8,6 +8,7 @@ DSH 本地视觉插件：对话框里直接粘贴截图，AI 就能看到并分�
 - **语义理解**（ollama + qwen3-vl）：看懂画面布局、元素与异常区域
 - **两阶段读图**：先定位标注区域（文本/框线），再裁剪放大细看，标注内容读得准
 - **自适应上传**：按当前模型的图片能力自动切换——支持 image 直接看见图，纯文本通道走本地视觉（不改写你的任何配置）
+- **规范合规**：工具声明超时预算、并发安全与 UI 卡片（图片路径可被编辑器跟随），符合 DSH 0.2 工具规范
 - **零配置**：自动检测环境、按内存选模型（8G→2b / 16~32G→4b / 32G+→8b）、缺 ollama 自动安装、Swift 工具自动预编译
 - **渐进可用**：模型后台下载（1.8~5.7GB）期间 OCR 已可用
 - **全本地**：免费、离线、图片不出 Mac
@@ -15,7 +16,7 @@ DSH 本地视觉插件：对话框里直接粘贴截图，AI 就能看到并分�
 ## 安装
 
 ```sh
-dsh plugin --profile web add "github:kaaaaahn/dsh-vision#v0.4.0"
+dsh plugin --profile web add "github:kaaaaahn/dsh-vision#v0.5.0"
 ```
 
 重启 DSH 生效。桌面端把 `--profile web` 换成 `--profile desktop`。
